@@ -2,16 +2,14 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 
-# ==========================================
-# 1. 页面配置
-# ==========================================
+# 1. Page Configuration
 st.set_page_config(
-    page_title="商金宝老师的数理辅导",
-    page_icon="👨‍🏫",
+    page_title="Math & Physics Tutor",
+    page_icon="🎓",
     layout="centered"
 )
 
-# CSS 美化 (保持苹果风)
+# 2. CSS Styling (Apple Style)
 st.markdown("""
 <style>
     body, .stApp {
@@ -31,88 +29,92 @@ st.markdown("""
         padding: 10px 24px;
         width: 100%;
         font-weight: 500;
+        font-size: 16px;
     }
     .stButton button:hover {
         background-color: #0077ED;
     }
-    /* 名字特效 */
     .teacher-name {
-        font-size: 1.2rem;
+        font-size: 1.1rem;
         color: #86868b;
         text-align: center;
         margin-bottom: 30px;
-        font-weight: 400;
+    }
+    .result-card {
+        background-color: white;
+        border-radius: 18px;
+        padding: 24px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-top: 20px;
+        border: 1px solid #F5F5F7;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. 界面设计 (已添加名字)
-# ==========================================
-
-# 主标题
+# 3. UI Layout
 st.markdown("<h1 style='text-align: center;'>🎓 商金宝老师的数理辅导</h1>", unsafe_allow_html=True)
-
-# 副标题 (你的署名)
 st.markdown("<p class='teacher-name'>物理老师商金宝 · Grade 9 专属 · 拍照解题</p>", unsafe_allow_html=True)
 
-# 侧边栏
+# Sidebar
 with st.sidebar:
-    st.header("⚙️ 设置")
-    api_key = st.text_input("请输入 Gemini API Key", type="password")
-    st.info("提示：请向商老师索取 Key 或自行申请")
+    st.header("⚙️ 设置 (Settings)")
+    api_key = st.text_input("Gemini API Key", type="password")
+    st.info("请输入你的 Google Gemini API Key")
 
-# 图片上传区
+# File Uploader
 uploaded_file = st.file_uploader("📸 上传题目图片 (可选)", type=["jpg", "jpeg", "png"])
 image = None
-
 if uploaded_file:
     image = Image.open(uploaded_file)
-    st.image(image, caption="已上传的题目", use_container_width=True)
+    st.image(image, caption="已上传图片", use_container_width=True)
 
-# 文本输入区
-input_text = st.text_area("📝 手动输入题目或补充问题...", height=100, placeholder="例如：请帮我讲解这道电路图的问题...")
+# Text Input
+input_text = st.text_area("📝 手动输入题目或补充问题...", height=100)
 
-submit = st.button("开始解答")
+# Submit Button
+submit = st.button("开始解答 (Start)")
 
-# ==========================================
-# 3. AI 核心逻辑
-# ==========================================
+# 4. Logic & AI Call
 if submit:
     if not api_key:
-        st.error("🔒 请输入 API Key 才能开始解题")
+        st.error("🔒 请先在侧边栏输入 API Key (Please enter API Key first)")
     elif not input_text and not image:
-        st.warning("⚠️ 请上传图片或输入文字")
+        st.warning("⚠️ 请上传图片或输入文字 (Please upload image or text)")
     else:
         try:
+            # Configure API
             genai.configure(api_key=api_key)
-            model = genai.GenerativeModel('gemini-1.5-flash-latest')
-
             
-            # 定制提示词
+            # Using the latest stable model
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Prompt Engineering
             system_prompt = """
-            你现在是【物理老师商金宝】的AI助教。
-            请用商老师亲切、专业的口吻，为Grade 9 (初三) 的学生讲解题目。
+            你是一位名字叫【商金宝】的资深初中物理和数学老师。
+            你的学生是 Grade 9 (初三) 水平。
+            请用亲切、鼓励的口吻（中文）回答。
             
             要求：
-            1. **身份代入**：回答时可以使用"商老师觉得..."或"我们可以这样看..."。
-            2. **逻辑清晰**：分步骤讲解，不要直接给答案。
-            3. **公式规范**：数学公式使用 LaTeX 格式。
-            4. **鼓励式教学**：如果题目很难，要给学生一点鼓励。
+            1. 识别图片中的题目。
+            2. 步骤清晰，逻辑严密。
+            3. 数学公式使用 LaTeX 格式。
             """
             
-            with st.spinner('商老师正在思考中...'):
-                inputs = [system_prompt]
+            with st.spinner('商老师正在思考中... (Thinking...)'):
+                content = [system_prompt]
                 if input_text:
-                    inputs.append(f"学生的问题：{input_text}")
+                    content.append(input_text)
                 if image:
-                    inputs.append(image)
+                    content.append(image)
                 
-                response = model.generate_content(inputs)
+                # Generate
+                response = model.generate_content(content)
                 
-                # 结果显示
+                # Display
+                st.markdown('<div class="result-card">', unsafe_allow_html=True)
                 st.markdown("### 💡 商老师的解答：")
                 st.markdown(response.text)
+                st.markdown('</div>', unsafe_allow_html=True)
                 
         except Exception as e:
-            st.error(f"出错了：{e}")
+            st.error(f"发生错误 (Error): {e}")
