@@ -1,130 +1,117 @@
 import streamlit as st
 import google.generativeai as genai
+from PIL import Image
 
 # ==========================================
-# 1. 页面配置 & 苹果风 UI 设计
+# 1. 页面配置
 # ==========================================
 st.set_page_config(
-    page_title="Math & Physics Tutor",
-    page_icon="🍎",
+    page_title="商金宝老师的数理辅导",
+    page_icon="👨‍🏫",
     layout="centered"
 )
 
-# 注入自定义 CSS 以实现“苹果风”
+# CSS 美化 (保持苹果风)
 st.markdown("""
 <style>
-    /* 1. 引入系统字体 */
     body, .stApp {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         background-color: #FBFBFD;
         color: #1D1D1F;
     }
-    
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-
-    /* 标题样式 */
-    h1 {
-        font-weight: 600;
-        letter-spacing: -0.02em;
-        font-size: 2.5rem;
-        text-align: center;
-        padding-top: 1rem;
-        padding-bottom: 2rem;
-    }
-
-    /* 输入框美化 */
-    .stTextArea textarea {
-        border-radius: 12px;
-        border: 1px solid #D2D2D7;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-        padding: 16px;
-        font-size: 16px;
-    }
-    .stTextArea textarea:focus {
-        border-color: #0071e3;
-        box-shadow: 0 0 0 2px rgba(0,113,227,0.2);
-    }
-
-    /* 按钮美化 */
+    
     .stButton button {
-        background-color: #000000;
+        background-color: #0071e3;
         color: white;
         border-radius: 20px;
-        padding: 10px 24px;
-        font-weight: 500;
         border: none;
+        padding: 10px 24px;
         width: 100%;
-        transition: all 0.3s ease;
+        font-weight: 500;
     }
     .stButton button:hover {
-        background-color: #333333;
-        transform: scale(1.01);
+        background-color: #0077ED;
     }
-
-    /* 结果卡片美化 */
-    .result-card {
-        background-color: white;
-        border-radius: 18px;
-        padding: 24px;
-        box-shadow: 0 8px 30px rgba(0,0,0,0.04);
-        margin-top: 20px;
-        border: 1px solid #F5F5F7;
+    /* 名字特效 */
+    .teacher-name {
+        font-size: 1.2rem;
+        color: #86868b;
+        text-align: center;
+        margin-bottom: 30px;
+        font-weight: 400;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. 逻辑处理核心
+# 2. 界面设计 (已添加名字)
 # ==========================================
 
-st.markdown("<h1> Math & Physics Tutor</h1>", unsafe_allow_html=True)
-st.markdown("<p style='text-align: center; color: #86868b; margin-top: -20px; margin-bottom: 40px;'>Grade 9 专属 · 极简 · 智能</p>", unsafe_allow_html=True)
+# 主标题
+st.markdown("<h1 style='text-align: center;'>🎓 商金宝老师的数理辅导</h1>", unsafe_allow_html=True)
 
-# 侧边栏设置 API Key
+# 副标题 (你的署名)
+st.markdown("<p class='teacher-name'>物理老师商金宝 · Grade 9 专属 · 拍照解题</p>", unsafe_allow_html=True)
+
+# 侧边栏
 with st.sidebar:
-    st.write("设置")
-    api_key = st.text_input("Gemini API Key", type="password")
-    
-# 主输入区
-input_text = st.text_area("请输入题目或疑问...", height=120, placeholder="例如：一个抛物线 y=ax²+bx+c 经过点(0,0)...")
+    st.header("⚙️ 设置")
+    api_key = st.text_input("请输入 Gemini API Key", type="password")
+    st.info("提示：请向商老师索取 Key 或自行申请")
 
-# 按钮区
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    submit = st.button("开始解答")
+# 图片上传区
+uploaded_file = st.file_uploader("📸 上传题目图片 (可选)", type=["jpg", "jpeg", "png"])
+image = None
+
+if uploaded_file:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="已上传的题目", use_container_width=True)
+
+# 文本输入区
+input_text = st.text_area("📝 手动输入题目或补充问题...", height=100, placeholder="例如：请帮我讲解这道电路图的问题...")
+
+submit = st.button("开始解答")
 
 # ==========================================
-# 3. AI 回答逻辑
+# 3. AI 核心逻辑
 # ==========================================
 if submit:
     if not api_key:
-        st.warning("⚠️ 请先在侧边栏输入 API Key")
-    elif not input_text:
-        st.warning("⚠️ 请先输入题目")
+        st.error("🔒 请输入 API Key 才能开始解题")
+    elif not input_text and not image:
+        st.warning("⚠️ 请上传图片或输入文字")
     else:
         try:
             genai.configure(api_key=api_key)
             model = genai.GenerativeModel('gemini-1.5-flash')
             
-            system_prompt = f"""
-            你是一位世界顶级的初中数学和物理老师。
-            你的学生是 Grade 9 (初三) 水平。
-            请按照以下风格回答：
-            1. **清晰直观**：像苹果的设计一样，逻辑分层。
-            2. **公式规范**：所有数学公式必须使用 LaTeX 格式（用 $ 包裹）。
-            3. **循循善诱**：先分析思路，再给出步骤。
-            4. **语言风格**：亲切、鼓励性，用中文回答。
+            # 定制提示词
+            system_prompt = """
+            你现在是【物理老师商金宝】的AI助教。
+            请用商老师亲切、专业的口吻，为Grade 9 (初三) 的学生讲解题目。
             
-            学生的问题是：{input_text}
+            要求：
+            1. **身份代入**：回答时可以使用"商老师觉得..."或"我们可以这样看..."。
+            2. **逻辑清晰**：分步骤讲解，不要直接给答案。
+            3. **公式规范**：数学公式使用 LaTeX 格式。
+            4. **鼓励式教学**：如果题目很难，要给学生一点鼓励。
             """
             
-            with st.spinner('正在分析题目逻辑...'):
-                response = model.generate_content(system_prompt)
-                st.markdown('<div class="result-card">', unsafe_allow_html=True)
+            with st.spinner('商老师正在思考中...'):
+                inputs = [system_prompt]
+                if input_text:
+                    inputs.append(f"学生的问题：{input_text}")
+                if image:
+                    inputs.append(image)
+                
+                response = model.generate_content(inputs)
+                
+                # 结果显示
+                st.markdown("### 💡 商老师的解答：")
                 st.markdown(response.text)
-                st.markdown('</div>', unsafe_allow_html=True)
                 
         except Exception as e:
-            st.error(f"发生错误: {e}")
+            st.error(f"出错了：{e}")
